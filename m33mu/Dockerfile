@@ -113,7 +113,9 @@ RUN set -eux; \
     /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel; \
     /opt/venv/bin/pip install --no-cache-dir west
 
+# update_board runs a bare "west update" in a subprocess
 RUN set -eux; \
+    export PATH="/opt/venv/bin:${PATH}"; \
     mkdir -p "${MCUX_ROOT}"; \
     cd "${MCUX_ROOT}"; \
     /opt/venv/bin/west init \
