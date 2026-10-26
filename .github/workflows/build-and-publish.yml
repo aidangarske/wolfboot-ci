@@ -22,11 +22,25 @@ env:
   OWNER: wolfssl
 
 jobs:
+  version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version: ${{ steps.release.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Prepare release version
+        id: release
+        run: python3 .github/scripts/prepare-release.py
+
   base:
+    needs: version
     if: >-
       github.event_name == 'push' ||
-      github.event.inputs.image == 'all' ||
-      github.event.inputs.image == 'base'
+      github.event.inputs.image != 'm33mu'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -47,11 +61,11 @@ jobs:
           context: base
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-base:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-base:${{ needs.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-base:latest
 
   arm:
-    needs: base
+    needs: [version, base]
     if: >-
       github.event_name == 'push' ||
       github.event.inputs.image == 'all' ||
@@ -75,13 +89,13 @@ jobs:
         with:
           context: arm
           push: true
-          build-args: BASE_TAG=${{ github.ref_name }}
+          build-args: BASE_TAG=${{ needs.version.outputs.version }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-arm:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-arm:${{ needs.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-arm:latest
 
   sim:
-    needs: base
+    needs: [version, base]
     if: >-
       github.event_name == 'push' ||
       github.event.inputs.image == 'all' ||
@@ -105,12 +119,13 @@ jobs:
         with:
           context: sim
           push: true
-          build-args: BASE_TAG=${{ github.ref_name }}
+          build-args: BASE_TAG=${{ needs.version.outputs.version }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-sim:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-sim:${{ needs.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-sim:latest
 
   m33mu:
+    needs: version
     if: >-
       github.event_name == 'push' ||
       github.event.inputs.image == 'all' ||
@@ -137,11 +152,11 @@ jobs:
           pull: true
           no-cache: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-m33mu:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-m33mu:${{ needs.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-m33mu:latest
 
   powerpc:
-    needs: base
+    needs: [version, base]
     if: >-
       github.event_name == 'push' ||
       github.event.inputs.image == 'all' ||
@@ -165,13 +180,13 @@ jobs:
         with:
           context: powerpc
           push: true
-          build-args: BASE_TAG=${{ github.ref_name }}
+          build-args: BASE_TAG=${{ needs.version.outputs.version }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-powerpc:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-powerpc:${{ needs.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-powerpc:latest
 
   riscv:
-    needs: base
+    needs: [version, base]
     if: >-
       github.event_name == 'push' ||
       github.event.inputs.image == 'all' ||
@@ -195,13 +210,13 @@ jobs:
         with:
           context: riscv
           push: true
-          build-args: BASE_TAG=${{ github.ref_name }}
+          build-args: BASE_TAG=${{ needs.version.outputs.version }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-riscv:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-riscv:${{ needs.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-riscv:latest
 
   aarch64:
-    needs: base
+    needs: [version, base]
     if: >-
       github.event_name == 'push' ||
       github.event.inputs.image == 'all' ||
@@ -225,13 +240,13 @@ jobs:
         with:
           context: aarch64
           push: true
-          build-args: BASE_TAG=${{ github.ref_name }}
+          build-args: BASE_TAG=${{ needs.version.outputs.version }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-aarch64:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-aarch64:${{ needs.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-aarch64:latest
 
   x86:
-    needs: base
+    needs: [version, base]
     if: >-
       github.event_name == 'push' ||
       github.event.inputs.image == 'all' ||
@@ -255,13 +270,13 @@ jobs:
         with:
           context: x86
           push: true
-          build-args: BASE_TAG=${{ github.ref_name }}
+          build-args: BASE_TAG=${{ needs.version.outputs.version }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-x86:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-x86:${{ needs.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-x86:latest
 
   renode:
-    needs: base
+    needs: [version, base]
     if: >-
       github.event_name == 'push' ||
       github.event.inputs.image == 'all' ||
@@ -285,7 +300,7 @@ jobs:
         with:
           context: renode
           push: true
-          build-args: BASE_TAG=${{ github.ref_name }}
+          build-args: BASE_TAG=${{ needs.version.outputs.version }}
           tags: |
-            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-renode:${{ github.ref_name }}
+            ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-renode:${{ needs.version.outputs.version }}
             ${{ env.REGISTRY }}/${{ env.OWNER }}/wolfboot-ci-renode:latest

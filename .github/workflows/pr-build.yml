@@ -62,3 +62,10 @@ jobs:
           else
             docker build --pull --no-cache "$IMAGE"
           fi
+
+  release-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test release versioning
+        run: python3 -m unittest discover -s tests -v

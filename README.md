@@ -92,9 +92,13 @@ Dockerfile in the pull request, so changes to both are tested together.
 
 ## Publishing
 
-Pushes to `master`, including merged pull requests, build and publish all images
-to GHCR with the `master` and `latest` tags. Pull request checks build images
-without publishing them.
+Pushes to `master`, including merged pull requests, create the next version tag
+(for example, `v1.29` then `v1.30`) and publish all images to GHCR with that
+version and `latest`. Rerunning the same commit reuses its existing version.
+Tag creation and image publication happen in the same workflow run.
+
+Pull request checks build images without publishing them and test the release
+versioning against a local Git remote.
 
 Version tag pushes also publish images with the version tag and `latest`:
 
