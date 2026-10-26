@@ -88,7 +88,7 @@ RUN printf 'int main(void){return 0;}\n' > /tmp/arm-none-eabi-smoke.c \
 # fetched. The board manifests' repo_list also pulls TF-M, eIQ and friends,
 # whose GitLab submodules (eigen) make the build fail whenever GitLab is busy.
 # A new NXP family needs its mcux-devices-<family> project added here.
-ARG MCUX_PROJECTS="core CMSIS mcu-sdk-components mcu-sdk-examples mcux-devices-lpc mcux-devices-mcx mcux-devices-rt"
+ARG MCUX_PROJECTS="core CMSIS mcu-sdk-components mcu-sdk-examples mcux-devices-lpc mcux-devices-mcx mcux-devices-rt mcux-devices-wireless els_pkc secure-subsystem"
 
 # Drop the non-_boards examples, which no wolfBoot makefile names. Set
 # MCUX_PRUNE=0 to keep them.
@@ -130,10 +130,13 @@ RUN set -eux; \
 RUN set -eux; \
     test -f "${MCUXPRESSO}/drivers/common/fsl_common.h"; \
     test -f "${MCUXPRESSO}/drivers/puf/fsl_puf.h"; \
+    test -f "${MCUXPRESSO}/components/els_pkc/includes/mcuxClEls.h"; \
+    test -f "${MCUXPRESSO}/middleware/secure-subsystem/inc/fsl_sscp_mu.h"; \
     test -f "${MCUXPRESSO_CMSIS}/Core/Include/core_cm33.h"; \
     test -d "${MCUXPRESSO}/devices/LPC/LPC5500/LPC55S69"; \
     test -d "${MCUXPRESSO}/devices/MCX/MCXN/MCXN947"; \
     test -d "${MCUXPRESSO}/devices/RT/RT700"; \
+    test -d "${MCUXPRESSO}/devices/Wireless/RW/RW612"; \
     test -d "${MCUXPRESSO}/examples/_boards/lpcxpresso55s69/project_template"; \
     test -d "${MCUXPRESSO}/examples/_boards/frdmmcxn947/project_template"; \
     test -d "${MCUXPRESSO}/examples/_boards/mimxrt700evk"

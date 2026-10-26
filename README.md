@@ -21,9 +21,11 @@ All images use Devuan testing as the base (except renode).
 
 ## Building locally
 
+Tag the base with its full image name so derived builds find the local image.
+
 ```bash
 # Build base first
-podman build --no-cache -t wolfboot-ci-base:testing base/
+podman build --no-cache -t ghcr.io/wolfssl/wolfboot-ci-base:testing base/
 
 # Build derived images (replace 'arm' with any image name)
 podman build --no-cache --build-arg BASE_TAG=testing -t wolfboot-ci-arm:testing arm/
@@ -42,10 +44,12 @@ directory`. The m33mu image ships both, and exports
     MCUXPRESSO_CMSIS=/opt/nxp/CMSIS_5/CMSIS
 
 wolfBoot's example configs set these with `?=`, so the environment wins and
-jobs need no extra make arguments — plain `make` works.
+jobs need no extra make arguments. Plain `make` works.
 
 Only the west projects behind the paths wolfBoot's makefiles name are fetched
-(`core`, `CMSIS`, components, examples and the LPC, MCX and RT device trees).
+(`core`, `CMSIS`, components, examples, the LPC, MCX, RT and Wireless device trees,
+`els_pkc` and `secure-subsystem`).
+Use `MCUX_PROJECTS` to extend this set; `MCUX_BOARDS` is no longer used.
 The NXP board manifests also pull TF-M, eIQ and other middleware whose GitLab
 submodules break the build whenever GitLab is overloaded, so the image skips
 them:
@@ -53,7 +57,7 @@ them:
 ```bash
 # Add a device family (for example Kinetis)
 podman build --no-cache \
-  --build-arg MCUX_PROJECTS="core CMSIS mcu-sdk-components mcu-sdk-examples mcux-devices-lpc mcux-devices-mcx mcux-devices-rt mcux-devices-kinetis" \
+  --build-arg MCUX_PROJECTS="core CMSIS mcu-sdk-components mcu-sdk-examples mcux-devices-lpc mcux-devices-mcx mcux-devices-rt mcux-devices-wireless els_pkc secure-subsystem mcux-devices-kinetis" \
   -t wolfboot-ci-m33mu:testing m33mu/
 
 # Keep every example instead of only examples/_boards
@@ -80,9 +84,19 @@ jobs:
         run: make
 ```
 
+## Pull request builds
+
+Pull requests build each changed image without publishing it. Changes to `base/`
+also build its dependent images. Each dependent image builds against the base
+Dockerfile in the pull request, so changes to both are tested together.
+
 ## Publishing
 
-Images are automatically built and published to GHCR when a version tag is pushed:
+Pushes to `master`, including merged pull requests, build and publish all images
+to GHCR with the `master` and `latest` tags. Pull request checks build images
+without publishing them.
+
+Version tag pushes also publish images with the version tag and `latest`:
 
 ```bash
 git tag v1.0
