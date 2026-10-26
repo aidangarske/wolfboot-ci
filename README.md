@@ -44,25 +44,21 @@ directory`. The m33mu image ships both, and exports
 wolfBoot's example configs set these with `?=`, so the environment wins and
 jobs need no extra make arguments — plain `make` works.
 
-Boards are provisioned into one shared west workspace. `west update_board`
-updates only its own board's projects, so boards accumulate:
+Only the west projects behind the paths wolfBoot's makefiles name are fetched
+(`core`, `CMSIS`, components, examples and the LPC, MCX and RT device trees).
+The NXP board manifests also pull TF-M, eIQ and other middleware whose GitLab
+submodules break the build whenever GitLab is overloaded, so the image skips
+them:
 
 ```bash
-# Add or change the board set (default: lpcxpresso55s69 frdmmcxn947 mimxrt700evk)
+# Add a device family (for example Kinetis)
 podman build --no-cache \
-  --build-arg MCUX_BOARDS="lpcxpresso55s69 frdmmcxn947 frdmmcxa153" \
+  --build-arg MCUX_PROJECTS="core CMSIS mcu-sdk-components mcu-sdk-examples mcux-devices-lpc mcux-devices-mcx mcux-devices-rt mcux-devices-kinetis" \
   -t wolfboot-ci-m33mu:testing m33mu/
 
-# Keep the full SDK instead of pruning to the subtrees wolfBoot references
+# Keep every example instead of only examples/_boards
 podman build --no-cache --build-arg MCUX_PRUNE=0 -t wolfboot-ci-m33mu:testing m33mu/
 ```
-
-Boards share most repositories, so extra boards are far cheaper than the
-first: `lpcxpresso55s69` alone costs ~3.0 GB, `+frdmmcxn947` ~2.5 GB more,
-and `+mimxrt700evk` only ~145 MB. The default prune (dropping `middleware`,
-`rtos`, `docs`, the non-`_boards` examples, and the `.git` directories, none
-of which any wolfBoot makefile names) takes the three-board default from
-~5.8 GB to ~2.8 GB.
 
 ## Usage in GitHub Actions
 

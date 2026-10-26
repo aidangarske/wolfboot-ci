@@ -84,20 +84,14 @@ RUN printf 'int main(void){return 0;}\n' > /tmp/arm-none-eabi-smoke.c \
 # west-provisioned MCUXpresso SDK tree plus NXP's CMSIS_5 fork. Without them a
 # job in this image dies at `fsl_common.h: No such file or directory`.
 #
-# `west update_board` runs `west update -n -o=--depth=1 <projects>`, updating
-# only that board's projects, so boards accumulate in one workspace: add a
-# board by appending it to MCUX_BOARDS.
-#
-# The se_hostlib/emwin projects are dropped from each board manifest (they are
-# not publicly fetchable), matching wolfBoot's
-# .github/workflows/test-build-mcux-sdk-manifests.yml.
-ARG MCUX_BOARDS="lpcxpresso55s69 frdmmcxn947 mimxrt700evk"
+# Only the west projects behind the paths wolfBoot's makefiles name are
+# fetched. The board manifests' repo_list also pulls TF-M, eIQ and friends,
+# whose GitLab submodules (eigen) make the build fail whenever GitLab is busy.
+# A new NXP family needs its mcux-devices-<family> project added here.
+ARG MCUX_PROJECTS="core CMSIS mcu-sdk-components mcu-sdk-examples mcux-devices-lpc mcux-devices-mcx mcux-devices-rt"
 
-# Keep only the subtrees wolfBoot's build actually references: devices,
-# drivers, components, CMSIS, arch and examples/_boards/<board>. middleware,
-# rtos, docs and the non-_boards examples are never named by any wolfBoot
-# makefile and dominate the tree, so they are pruned. Set MCUX_PRUNE=0 to keep
-# the full SDK if a future target needs more of it.
+# Drop the non-_boards examples, which no wolfBoot makefile names. Set
+# MCUX_PRUNE=0 to keep them.
 ARG MCUX_PRUNE=1
 
 ENV MCUX_ROOT=/opt/nxp
@@ -113,22 +107,16 @@ RUN set -eux; \
     /opt/venv/bin/pip install --no-cache-dir --upgrade pip setuptools wheel; \
     /opt/venv/bin/pip install --no-cache-dir west
 
-# update_board runs a bare "west update" in a subprocess
 RUN set -eux; \
-    export PATH="/opt/venv/bin:${PATH}"; \
     mkdir -p "${MCUX_ROOT}"; \
     cd "${MCUX_ROOT}"; \
     /opt/venv/bin/west init \
         -m https://github.com/nxp-mcuxpresso/mcuxsdk-manifests.git mcuxpresso-sdk; \
     cd "${MCUX_ROOT}/mcuxpresso-sdk"; \
-    for board in ${MCUX_BOARDS}; do \
-        sed -i '/se_hostlib\|emwin/d' "manifests/boards/${board}.yml"; \
-        /opt/venv/bin/west update_board --set board "${board}"; \
-    done; \
+    /opt/venv/bin/west update -n -o=--depth=1 ${MCUX_PROJECTS}; \
     git clone --depth 1 https://github.com/nxp-mcuxpresso/CMSIS_5.git \
         "${MCUX_ROOT}/CMSIS_5"; \
     if [ "${MCUX_PRUNE}" = "1" ]; then \
-        rm -rf "${MCUXPRESSO}/docs" "${MCUXPRESSO}/middleware" "${MCUXPRESSO}/rtos"; \
         find "${MCUXPRESSO}/examples" -mindepth 1 -maxdepth 1 \
             ! -name '_boards' -exec rm -rf {} +; \
     fi; \
@@ -145,6 +133,7 @@ RUN set -eux; \
     test -f "${MCUXPRESSO_CMSIS}/Core/Include/core_cm33.h"; \
     test -d "${MCUXPRESSO}/devices/LPC/LPC5500/LPC55S69"; \
     test -d "${MCUXPRESSO}/devices/MCX/MCXN/MCXN947"; \
+    test -d "${MCUXPRESSO}/devices/RT/RT700"; \
     test -d "${MCUXPRESSO}/examples/_boards/lpcxpresso55s69/project_template"; \
     test -d "${MCUXPRESSO}/examples/_boards/frdmmcxn947/project_template"; \
     test -d "${MCUXPRESSO}/examples/_boards/mimxrt700evk"
