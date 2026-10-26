@@ -1,0 +1,64 @@
+name: Build Changed CI Images
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      images: ${{ steps.diff.outputs.images }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: List image directories touched by this PR
+        id: diff
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          import subprocess
+
+          dockerfiles = {p.parent.name: p for p in Path('.').glob('*/Dockerfile')}
+          paths = subprocess.check_output([
+              'git', 'diff', '--name-only', '-z', os.environ['BASE_SHA'], 'HEAD'
+          ]).decode().split('\0')
+          images = {p.split('/')[0] for p in paths} & dockerfiles.keys()
+          if 'base' in images:
+              images.update(name for name, path in dockerfiles.items()
+                            if 'FROM ghcr.io/wolfssl/wolfboot-ci-base:' in path.read_text())
+          images = json.dumps(sorted(images))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              output.write(f'images={images}\n')
+          print(f'Images to build: {images}')
+          PY
+
+  build:
+    needs: changes
+    if: needs.changes.outputs.images != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.changes.outputs.images) }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build ${{ matrix.image }}
+        env:
+          IMAGE: ${{ matrix.image }}
+        run: |
+          if grep -q '^FROM ghcr.io/wolfssl/wolfboot-ci-base:' "$IMAGE/Dockerfile"; then
+            docker build --pull --no-cache -t ghcr.io/wolfssl/wolfboot-ci-base:pr base
+            docker build --no-cache --build-arg BASE_TAG=pr "$IMAGE"
+          else
+            docker build --pull --no-cache "$IMAGE"
+          fi

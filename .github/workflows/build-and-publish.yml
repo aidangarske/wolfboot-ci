@@ -2,6 +2,8 @@ name: Build and Publish CI Images
 
 on:
   push:
+    branches:
+      - master
     tags:
       - 'v*'
   workflow_dispatch:
@@ -10,6 +12,10 @@ on:
         description: 'Image to build (all, base, arm, sim, m33mu, powerpc, riscv, aarch64, x86, renode)'
         required: false
         default: 'all'
+
+concurrency:
+  group: publish-ci-images-${{ github.ref }}
+  cancel-in-progress: false
 
 env:
   REGISTRY: ghcr.io

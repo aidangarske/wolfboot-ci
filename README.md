@@ -21,9 +21,11 @@ All images use Devuan testing as the base (except renode).
 
 ## Building locally
 
+Tag the base with its full image name so derived builds find the local image.
+
 ```bash
 # Build base first
-podman build --no-cache -t wolfboot-ci-base:testing base/
+podman build --no-cache -t ghcr.io/wolfssl/wolfboot-ci-base:testing base/
 
 # Build derived images (replace 'arm' with any image name)
 podman build --no-cache --build-arg BASE_TAG=testing -t wolfboot-ci-arm:testing arm/
@@ -42,27 +44,25 @@ directory`. The m33mu image ships both, and exports
     MCUXPRESSO_CMSIS=/opt/nxp/CMSIS_5/CMSIS
 
 wolfBoot's example configs set these with `?=`, so the environment wins and
-jobs need no extra make arguments — plain `make` works.
+jobs need no extra make arguments. Plain `make` works.
 
-Boards are provisioned into one shared west workspace. `west update_board`
-updates only its own board's projects, so boards accumulate:
+Only the west projects behind the paths wolfBoot's makefiles name are fetched
+(`core`, `CMSIS`, components, examples, the LPC, MCX, RT and Wireless device trees,
+`els_pkc` and `secure-subsystem`).
+Use `MCUX_PROJECTS` to extend this set; `MCUX_BOARDS` is no longer used.
+The NXP board manifests also pull TF-M, eIQ and other middleware whose GitLab
+submodules break the build whenever GitLab is overloaded, so the image skips
+them:
 
 ```bash
-# Add or change the board set (default: lpcxpresso55s69 frdmmcxn947 mimxrt700evk)
+# Add a device family (for example Kinetis)
 podman build --no-cache \
-  --build-arg MCUX_BOARDS="lpcxpresso55s69 frdmmcxn947 frdmmcxa153" \
+  --build-arg MCUX_PROJECTS="core CMSIS mcu-sdk-components mcu-sdk-examples mcux-devices-lpc mcux-devices-mcx mcux-devices-rt mcux-devices-wireless els_pkc secure-subsystem mcux-devices-kinetis" \
   -t wolfboot-ci-m33mu:testing m33mu/
 
-# Keep the full SDK instead of pruning to the subtrees wolfBoot references
+# Keep every example instead of only examples/_boards
 podman build --no-cache --build-arg MCUX_PRUNE=0 -t wolfboot-ci-m33mu:testing m33mu/
 ```
-
-Boards share most repositories, so extra boards are far cheaper than the
-first: `lpcxpresso55s69` alone costs ~3.0 GB, `+frdmmcxn947` ~2.5 GB more,
-and `+mimxrt700evk` only ~145 MB. The default prune (dropping `middleware`,
-`rtos`, `docs`, the non-`_boards` examples, and the `.git` directories, none
-of which any wolfBoot makefile names) takes the three-board default from
-~5.8 GB to ~2.8 GB.
 
 ## Usage in GitHub Actions
 
@@ -84,9 +84,19 @@ jobs:
         run: make
 ```
 
+## Pull request builds
+
+Pull requests build each changed image without publishing it. Changes to `base/`
+also build its dependent images. Each dependent image builds against the base
+Dockerfile in the pull request, so changes to both are tested together.
+
 ## Publishing
 
-Images are automatically built and published to GHCR when a version tag is pushed:
+Pushes to `master`, including merged pull requests, build and publish all images
+to GHCR with the `master` and `latest` tags. Pull request checks build images
+without publishing them.
+
+Version tag pushes also publish images with the version tag and `latest`:
 
 ```bash
 git tag v1.0
